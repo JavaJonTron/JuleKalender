@@ -12,27 +12,45 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         // Add DbContext
-        // Add DbContext
         services.AddDbContext<ApplicationDbContext>(options =>
         {
             var connectionString = configuration.GetConnectionString("DefaultConnection");
+            
+            // Debug logging for Render
+            Console.WriteLine($"DEBUG: ConnectionString found: {!string.IsNullOrEmpty(connectionString)}");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                // Print start of string to verify format without leaking secrets
+                var debugPrefix = connectionString.Length > 10 ? connectionString.Substring(0, 10) : connectionString;
+                Console.WriteLine($"DEBUG: ConnectionString starts with: {debugPrefix}...");
+            }
 
             // Handle Render's postgres:// URL format
-            if (!string.IsNullOrEmpty(connectionString) && connectionString.StartsWith("postgres://"))
+            if (!string.IsNullOrEmpty(connectionString) && 
+               (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || 
+                connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
             {
-                var databaseUri = new Uri(connectionString);
-                var userInfo = databaseUri.UserInfo.Split(':');
-                var builder = new Npgsql.NpgsqlConnectionStringBuilder
+                try 
                 {
-                    Host = databaseUri.Host,
-                    Port = databaseUri.Port,
-                    Username = userInfo[0],
-                    Password = userInfo[1],
-                    Database = databaseUri.LocalPath.TrimStart('/'),
-                    SslMode = Npgsql.SslMode.Require,
-                    TrustServerCertificate = true // For Render's self-signed certs if needed
-                };
-                connectionString = builder.ToString();
+                    var databaseUri = new Uri(connectionString);
+                    var userInfo = databaseUri.UserInfo.Split(':');
+                    var builder = new Npgsql.NpgsqlConnectionStringBuilder
+                    {
+                        Host = databaseUri.Host,
+                        Port = databaseUri.Port > 0 ? databaseUri.Port : 5432,
+                        Username = userInfo.Length > 0 ? userInfo[0] : string.Empty,
+                        Password = userInfo.Length > 1 ? userInfo[1] : string.Empty,
+                        Database = databaseUri.LocalPath.TrimStart('/'),
+                        SslMode = Npgsql.SslMode.Require,
+                        TrustServerCertificate = true
+                    };
+                    connectionString = builder.ToString();
+                    Console.WriteLine("DEBUG: Successfully parsed postgres URL to Npgsql format.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"DEBUG: Failed to parse postgres URL: {ex.Message}");
+                }
             }
 
             options.UseNpgsql(connectionString);
