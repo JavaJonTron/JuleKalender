@@ -1,10 +1,10 @@
-services:
-  # PostgreSQL Database
-  - type: pserv
-    name: julekalender-db
-    env: docker
+databases:
+  - name: julekalender-db
+    databaseName: julekalender
+    user: julekalender
     plan: free
-    
+
+services:
   # API Backend
   - type: web
     name: julekalender-api
