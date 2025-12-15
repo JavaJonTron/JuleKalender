@@ -14,7 +14,8 @@ builder.Services.AddHttpClient<ApiService>(client =>
     var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7001";
     if (!apiBaseUrl.StartsWith("http://") && !apiBaseUrl.StartsWith("https://"))
     {
-        apiBaseUrl = $"https://{apiBaseUrl}";
+        // Default to http for internal Render communication
+        apiBaseUrl = $"http://{apiBaseUrl}";
     }
     client.BaseAddress = new Uri(apiBaseUrl);
 });
