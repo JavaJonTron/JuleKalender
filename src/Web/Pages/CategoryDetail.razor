@@ -1,0 +1,189 @@
+@page "/categories/{CategoryId:guid}"
+@using Application.DTOs
+@using Web.Services
+@inject ApiService ApiService
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_category?.Name ?? "Kategori") - Julekalender</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (_category == null)
+{
+    <MudAlert Severity="Severity.Error">Kategori ikke funnet</MudAlert>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h3">@_category.Name</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+            OnClick="OpenAddGiftDialog">
+            Legg til gave
+        </MudButton>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_category.Description))
+    {
+        <MudText Typo="Typo.body1" Class="mb-4">@_category.Description</MudText>
+    }
+
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Color="Color.Primary">@_category.Gifts.Count</MudText>
+                <MudText Typo="Typo.body2">Totalt Gaver</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Color="Color.Secondary">
+                    @(_category.LastUsedDate?.ToString("MMM yyyy") ?? "-")
+                </MudText>
+                <MudText Typo="Typo.body2">Sist Brukt</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6" Color="Color.Tertiary">
+                    @_category.Gifts.Count(g => g.DateGiven.Year == DateTime.Now.Year)
+                </MudText>
+                <MudText Typo="Typo.body2">I År</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudText Typo="Typo.h5" GutterBottom="true">Gaver</MudText>
+
+    @if (!_category.Gifts.Any())
+    {
+        <MudAlert Severity="Severity.Info">Ingen gaver i denne kategorien ennå</MudAlert>
+    }
+    else
+    {
+
+        <MudList T="string">
+            @foreach (var gift in _category.Gifts.OrderByDescending(g => g.DateGiven))
+            {
+                <MudListItem T="string">
+                    <MudPaper Class="pa-4 mb-2">
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Class="mr-3" />
+                            <div style="flex: 1;">
+                                <MudText Typo="Typo.h6">@gift.Name</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    @gift.DateGiven.ToString("dd.MM.yyyy") • @gift.Recipient
+                                </MudText>
+                                @if (!string.IsNullOrWhiteSpace(gift.Description))
+                                {
+                                    <MudText Typo="Typo.body2" Class="mt-2">@gift.Description</MudText>
+                                }
+                            </div>
+                        </div>
+                    </MudPaper>
+                </MudListItem>
+            }
+        </MudList>
+    }
+}
+
+<MudDialog @bind-Visible="_addGiftDialogVisible" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Legg til gave</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_newGiftName" Label="Navn" Variant="Variant.Outlined" Required="true"
+            Margin="Margin.Dense" />
+        <MudTextField @bind-Value="_newGiftDescription" Label="Beskrivelse" Variant="Variant.Outlined" Lines="3"
+            Margin="Margin.Dense" Class="mt-3" />
+        <MudDatePicker @bind-Date="_newGiftDate" Label="Dato Gitt" Variant="Variant.Outlined" Margin="Margin.Dense"
+            Class="mt-3" />
+        <MudTextField @bind-Value="_newGiftRecipient" Label="Mottaker" Variant="Variant.Outlined" Required="true"
+            Margin="Margin.Dense" Class="mt-3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseAddGiftDialog">Avbryt</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="AddGift">Lagre</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter]
+    public Guid CategoryId { get; set; }
+
+    private CategoryDetailDto? _category;
+    private bool _loading = false;
+
+    private bool _addGiftDialogVisible = false;
+    private string _newGiftName = string.Empty;
+    private string _newGiftDescription = string.Empty;
+    private DateTime? _newGiftDate = DateTime.Today;
+    private string _newGiftRecipient = string.Empty;
+
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadCategory();
+    }
+
+    private async Task LoadCategory()
+    {
+        _loading = true;
+        try
+        {
+            _category = await ApiService.GetCategoryByIdAsync(CategoryId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Feil ved lasting: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OpenAddGiftDialog()
+    {
+        _newGiftName = string.Empty;
+        _newGiftDescription = string.Empty;
+        _newGiftDate = DateTime.Today;
+        _newGiftRecipient = string.Empty;
+        _addGiftDialogVisible = true;
+    }
+
+    private void CloseAddGiftDialog()
+    {
+        _addGiftDialogVisible = false;
+    }
+
+    private async Task AddGift()
+    {
+        if (string.IsNullOrWhiteSpace(_newGiftName) || string.IsNullOrWhiteSpace(_newGiftRecipient))
+        {
+            Snackbar.Add("Navn og mottaker er påkrevd", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await ApiService.CreateGiftAsync(
+            _newGiftName,
+            _newGiftDescription,
+            _newGiftDate ?? DateTime.Today,
+            _newGiftRecipient,
+            CategoryId
+            );
+
+            Snackbar.Add("Gave lagt til!", Severity.Success);
+            CloseAddGiftDialog();
+            await LoadCategory();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Feil ved opprettelse: {ex.Message}", Severity.Error);
+        }
+    }
+}

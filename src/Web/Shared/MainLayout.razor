@@ -1,0 +1,57 @@
+﻿@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="@_theme" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+            OnClick="@ToggleDrawer" />
+        <MudText Typo="Typo.h5" Class="ml-3">🎄 Julekalender</MudText>
+        <MudSpacer />
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="my-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private MudTheme _theme = new MudTheme
+        {
+            PaletteLight = new PaletteLight
+            {
+                Primary = "#C41E3A",
+                Secondary = "#165B33",
+                AppbarBackground = "#C41E3A",
+                Background = "#F5F5F5",
+                Surface = "#FFFFFF",
+                DrawerBackground = "#FFFFFF",
+                DrawerText = "rgba(0,0,0,0.87)"
+            },
+            PaletteDark = new PaletteDark
+            {
+                Primary = "#C41E3A",
+                Secondary = "#165B33",
+                AppbarBackground = "#1B1B1B",
+                Background = "#121212",
+                Surface = "#1E1E1E",
+                DrawerBackground = "#1E1E1E",
+                DrawerText = "rgba(255,255,255,0.87)"
+            }
+        };
+
+    void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}

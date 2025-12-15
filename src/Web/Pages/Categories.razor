@@ -1,0 +1,146 @@
+@page "/categories"
+@using Application.DTOs
+@using Web.Services
+@inject ApiService ApiService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Kategorier - Julekalender</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">Kategorier</MudText>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudGrid>
+        <MudItem xs="12" sm="8">
+            <MudTextField @bind-Value="_searchTerm" Placeholder="Søk etter kategori..." Adornment="Adornment.Start"
+                AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="300"
+                OnAdornmentClick="LoadCategories" />
+        </MudItem>
+        <MudItem xs="12" sm="4" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                OnClick="OpenCreateDialog" FullWidth="true">
+                Legg til ny kategori
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else if (_categories == null || !_categories.Any())
+{
+    <MudAlert Severity="Severity.Info">Ingen kategorier funnet. Opprett din første kategori!</MudAlert>
+}
+else
+{
+    <MudTable Items="@_categories" Hover="true" Breakpoint="Breakpoint.Sm">
+        <HeaderContent>
+            <MudTh>Navn</MudTh>
+            <MudTh>Beskrivelse</MudTh>
+            <MudTh>Antall Gaver</MudTh>
+            <MudTh>Sist Brukt</MudTh>
+            <MudTh>Handlinger</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Navn">
+                <MudLink Href="@($"/categories/{context.Id}")">
+                    <strong>@context.Name</strong>
+                </MudLink>
+            </MudTd>
+            <MudTd DataLabel="Beskrivelse">@context.Description</MudTd>
+            <MudTd DataLabel="Antall Gaver">
+                <MudChip T="int" Size="Size.Small" Color="Color.Primary">@context.GiftCount</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Sist Brukt">
+                @(context.LastUsedDate?.ToString("dd.MM.yyyy") ?? "-")
+            </MudTd>
+            <MudTd DataLabel="Handlinger">
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" Size="Size.Small"
+                    Href="@($"/categories/{context.Id}")" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_createDialogVisible">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Legg til ny kategori</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_newCategoryName" Label="Navn" Variant="Variant.Outlined" Required="true"
+            Margin="Margin.Dense" />
+        <MudTextField @bind-Value="_newCategoryDescription" Label="Beskrivelse" Variant="Variant.Outlined" Lines="3"
+            Margin="Margin.Dense" Class="mt-3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseCreateDialog">Avbryt</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="CreateCategory">Lagre</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<CategoryDto> _categories = new();
+    private bool _loading = false;
+    private string _searchTerm = string.Empty;
+
+    private bool _createDialogVisible = false;
+    private string _newCategoryName = string.Empty;
+    private string _newCategoryDescription = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategories();
+    }
+
+    private async Task LoadCategories()
+    {
+        _loading = true;
+        try
+        {
+            _categories = await ApiService.GetCategoriesAsync(_searchTerm);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Feil ved lasting av kategorier: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OpenCreateDialog()
+    {
+        _newCategoryName = string.Empty;
+        _newCategoryDescription = string.Empty;
+        _createDialogVisible = true;
+    }
+
+    private void CloseCreateDialog()
+    {
+        _createDialogVisible = false;
+    }
+
+    private async Task CreateCategory()
+    {
+        if (string.IsNullOrWhiteSpace(_newCategoryName))
+        {
+            Snackbar.Add("Navn er påkrevd", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await ApiService.CreateCategoryAsync(_newCategoryName, _newCategoryDescription);
+            Snackbar.Add("Kategori opprettet!", Severity.Success);
+            CloseCreateDialog();
+            await LoadCategories();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Feil ved opprettelse: {ex.Message}", Severity.Error);
+        }
+    }
+}

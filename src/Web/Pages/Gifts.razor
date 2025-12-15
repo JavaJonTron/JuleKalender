@@ -1,0 +1,79 @@
+@page "/gifts"
+@using Application.DTOs
+@using Web.Services
+@inject ApiService ApiService
+@inject ISnackbar Snackbar
+
+<PageTitle>Gaver - Julekalender</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">Alle Gaver</MudText>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudTextField @bind-Value="_searchTerm" Placeholder="Søk etter gave..." Adornment="Adornment.Start"
+        AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="300"
+        OnAdornmentClick="LoadGifts" />
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else if (_gifts == null || !_gifts.Any())
+{
+    <MudAlert Severity="Severity.Info">Ingen gaver funnet</MudAlert>
+}
+else
+{
+    <MudGrid>
+        @foreach (var gift in _gifts)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">@gift.Name</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">@gift.CategoryName</MudChip>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2">@gift.Description</MudText>
+                        <MudText Typo="Typo.caption" Class="mt-2">
+                            <strong>Dato:</strong> @gift.DateGiven.ToString("dd.MM.yyyy")
+                        </MudText>
+                        <MudText Typo="Typo.caption">
+                            <strong>Mottaker:</strong> @gift.Recipient
+                        </MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private List<GiftDto> _gifts = new();
+    private bool _loading = false;
+    private string _searchTerm = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGifts();
+    }
+
+    private async Task LoadGifts()
+    {
+        _loading = true;
+        try
+        {
+            _gifts = await ApiService.GetGiftsAsync(_searchTerm);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Feil ved lasting: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

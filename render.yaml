@@ -1,0 +1,39 @@
+# Render Deployment Configuration
+
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: julekalender-db
+    env: docker
+    plan: free
+    
+  # API Backend
+  - type: web
+    name: julekalender-api
+    env: docker
+    plan: free
+    buildCommand: dotnet publish src/WebApi/WebApi.csproj -c Release -o out
+    startCommand: cd out && ./WebApi
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: julekalender-db
+          property: connectionString
+    
+  # Blazor Web Frontend
+  - type: web
+    name: julekalender-web
+    env: docker
+    plan: free
+    buildCommand: dotnet publish src/Web/Web.csproj -c Release -o out
+    startCommand: cd out && ./Web
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ApiBaseUrl
+        fromService:
+          type: web
+          name: julekalender-api
+          property: host
